@@ -1,0 +1,118 @@
+# Evolution of Todo - Local Development
+# Docker Compose for local development environment
+
+version: '3.8'
+
+services:
+  # Phase I Development
+  phase1-dev:
+    image: python:3.11
+    working_dir: /app/phase1
+    volumes:
+      - ./phase1:/app/phase1
+    command: tail -f /dev/null
+    networks:
+      - todo-network
+
+  # Phase II Development
+  phase2-postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: todo_db
+      POSTGRES_USER: todo_user
+      POSTGRES_PASSWORD: todo_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - todo-network
+
+  phase2-backend:
+    image: python:3.11
+    working_dir: /app/phase2/backend
+    volumes:
+      - ./phase2/backend:/app/phase2/backend
+    environment:
+      DATABASE_URL: postgresql://todo_user:todo_password@phase2-postgres:5432/todo_db
+    command: tail -f /dev/null
+    depends_on:
+      - phase2-postgres
+    networks:
+      - todo-network
+
+  phase2-frontend:
+    image: node:18
+    working_dir: /app/phase2/frontend
+    volumes:
+      - ./phase2/frontend:/app/phase2/frontend
+    command: tail -f /dev/null
+    ports:
+      - "3000:3000"
+    networks:
+      - todo-network
+
+  # Phase III Development
+  phase3-backend:
+    image: python:3.11
+    working_dir: /app/phase3/backend
+    volumes:
+      - ./phase3/backend:/app/phase3/backend
+    environment:
+      DATABASE_URL: postgresql://todo_user:todo_password@phase2-postgres:5432/todo_db
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+    command: tail -f /dev/null
+    depends_on:
+      - phase2-postgres
+    networks:
+      - todo-network
+
+  phase3-frontend:
+    image: node:18
+    working_dir: /app/phase3/frontend
+    volumes:
+      - ./phase3/frontend:/app/phase3/frontend
+    command: tail -f /dev/null
+    ports:
+      - "3001:3000"
+    networks:
+      - todo-network
+
+  # Phase IV - Kafka (for local development)
+  kafka:
+    image: bitnami/kafka:3.5
+    environment:
+      KAFKA_CFG_NODE_ID: 0
+      KAFKA_CFG_PROCESS_ROLES: controller,broker
+      KAFKA_CFG_CONTROLLER_QUORUM_VOTERS: 0@kafka:9093
+      KAFKA_CFG_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+      KAFKA_CFG_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_CFG_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CFG_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_CFG_AUTO_CREATE_TOPICS_ENABLE: true
+    ports:
+      - "9092:9092"
+    volumes:
+      - kafka-data:/bitnami/kafka
+    networks:
+      - todo-network
+
+  # Phase V - Redis (optional, for caching)
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - todo-network
+
+volumes:
+  postgres-data:
+  kafka-data:
+  redis-data:
+
+networks:
+  todo-network:
+    driver: bridge

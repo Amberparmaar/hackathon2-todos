@@ -1,0 +1,100 @@
+# Spec-Kit Plus Configuration for Evolution of Todo
+# Hackathon II - Panaversity
+
+project:
+  name: "Evolution of Todo"
+  description: "5-phase progressive Todo application evolution from console to cloud-native AI-powered distributed system"
+  hackathon: "Panaversity Hackathon II"
+  version: "1.0.0"
+
+phases:
+  - phase: 1
+    name: "In-Memory Python Console App"
+    tech_stack:
+      - "Pure Python"
+    features:
+      - Basic CRUD operations
+      - In-memory storage
+    status: "pending"
+
+  - phase: 2
+    name: "Full-Stack Web App"
+    tech_stack:
+      - "Next.js (App Router + Tailwind)"
+      - "FastAPI"
+      - "Neon PostgreSQL"
+      - "Better Auth (JWT)"
+    features:
+      - Basic CRUD
+      - User authentication
+      - Persistent storage
+    status: "pending"
+
+  - phase: 3
+    name: "AI-Powered Chatbot"
+    tech_stack:
+      - "OpenAI ChatKit UI"
+      - "FastAPI"
+      - "OpenAI Agents SDK"
+      - "Official MCP SDK"
+    features:
+      - Basic CRUD
+      - Natural language interface
+      - Stateless server design
+    status: "pending"
+
+  - phase: 4
+    name: "Local Kubernetes Deployment"
+    tech_stack:
+      - "Docker"
+      - "Minikube"
+      - "Helm"
+      - "kubectl-ai/kagent"
+    features:
+      - Containerized deployment
+      - Kubernetes orchestration
+    status: "pending"
+
+  - phase: 5
+    name: "Advanced Cloud Deployment"
+    tech_stack:
+      - "Dapr (pubsub, state, jobs, secrets)"
+      - "Kafka/Redpanda"
+      - "Cloud K8s"
+    features:
+      - Event-driven architecture
+      - Cloud-native deployment
+      - Advanced features (priorities, tags, search, filters, sort, recurring tasks, due dates)
+    status: "pending"
+
+constitution:
+  file: ".specify/memory/constitution.md"
+  principles:
+    - "Spec-Driven Development (MANDATORY)"
+    - "Zero Manual Coding"
+    - "Phase-by-Phase Progression"
+    - "Reusable Intelligence Priority"
+    - "Strict Tech Stack Compliance"
+    - "Security & Best Practices"
+    - "Monorepo with Phase Isolation"
+    - "Documentation Excellence"
+
+workflow:
+  steps:
+    - "Specify (specify.md)"
+    - "Plan (plan.md)"
+    - "Tasks (tasks.md)"
+    - "Implement (implement.md)"
+
+rules:
+  - "No code without Task ID reference"
+  - "No manual edits to generated code"
+  - "All code comments must link to spec sections"
+  - "Phase progression requires completion validation"
+  - "Use agent skills and subagents for bonus points"
+
+bonus_features:
+  - "Reusable Intelligence via subagents & skills (+200)"
+  - "Cloud-Native Blueprints via Agent Skills (+200)"
+  - "Urdu language support in chatbot (+100)"
+  - "Voice input/commands (+200)"

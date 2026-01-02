@@ -1,0 +1,16 @@
+[project]
+name = "texthackathon-todo"
+version = "0.1.0"
+description = "Add your description here"
+authors = [
+    { name = "Amberparmaar", email = "ambershoukat201@gmail.com" }
+]
+requires-python = ">=3.14"
+dependencies = []
+
+[project.scripts]
+texthackathon-todo = "texthackathon_todo:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
