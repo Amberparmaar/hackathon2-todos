@@ -1,0 +1,437 @@
+# API Contracts: Phase II Authentication & Task CRUD
+
+**Date**: 2026-01-07
+**Version**: 1.0
+**Purpose**: Define RESTful API contract for authentication and task management endpoints
+
+## Overview
+
+This specification defines the complete API contract for Phase II multi-user Todo application. All endpoints follow RESTful patterns with JWT-based authentication and proper HTTP status codes.
+
+## Authentication Endpoints
+
+### POST /api/auth/signup
+
+**Purpose**: Create new user account
+
+**Request Headers**:
+```yaml
+Content-Type: application/json
+```
+
+**Request Body**:
+```yaml
+{
+  "email": "string (valid email format)",
+  "password": "string (min 8 characters)"
+}
+```
+
+**Success Response (201)**:
+```yaml
+{
+  "id": "uuid",
+  "email": "string",
+  "created_at": "ISO 8601 timestamp"
+}
+```
+
+**Error Responses**:
+- 400 Bad Request: Invalid email format or password too short
+- 409 Conflict: Email already registered
+- 422 Unprocessable Entity: Validation error details
+- 500 Internal Server Error
+
+**Validation Rules**:
+- Email: Must be valid email format
+- Password: Minimum 8 characters
+- Email uniqueness: Must not exist in database
+
+### POST /api/auth/signin
+
+**Purpose**: Authenticate existing user and receive JWT token
+
+**Request Headers**:
+```yaml
+Content-Type: application/json
+```
+
+**Request Body**:
+```yaml
+{
+  "email": "string",
+  "password": "string"
+}
+```
+
+**Success Response (200)**:
+```yaml
+{
+  "token": "string (JWT)",
+  "user": {
+    "id": "uuid",
+    "email": "string"
+  }
+}
+```
+
+**Error Responses**:
+- 400 Bad Request: Missing email or password
+- 401 Unauthorized: Invalid credentials
+- 500 Internal Server Error
+
+**JWT Token Format**:
+- Algorithm: HS256
+- Secret: BETTER_AUTH_SECRET (shared between frontend and backend)
+- Expiration: Default 7 days (configurable)
+- Payload: Contains user_id in subject claim
+
+### POST /api/auth/signout
+
+**Purpose**: Invalidate JWT token (client-side action)
+
+**Request Headers**:
+```yaml
+Content-Type: application/json
+Authorization: Bearer <jwt_token>
+```
+
+**Request Body**: Empty
+
+**Success Response (200)**:
+```yaml
+{
+  "message": "Successfully signed out"
+}
+```
+
+**Error Responses**:
+- 401 Unauthorized: Invalid or expired token
+- 500 Internal Server Error
+
+**Note**: Token invalidation is primarily a client-side action (remove from localStorage/cookies).
+
+## Task Management Endpoints
+
+All task endpoints require valid JWT authentication via Authorization header.
+
+### POST /api/tasks
+
+**Purpose**: Create new task for authenticated user
+
+**Request Headers**:
+```yaml
+Content-Type: application/json
+Authorization: Bearer <jwt_token>
+```
+
+**Request Body**:
+```yaml
+{
+  "title": "string (1-200 characters, required)",
+  "description": "string (max 1000 characters, optional)"
+}
+```
+
+**Success Response (201)**:
+```yaml
+{
+  "id": "uuid",
+  "title": "string",
+  "description": "string or null",
+  "completed": false,
+  "user_id": "uuid",
+  "created_at": "ISO 8601 timestamp"
+}
+```
+
+**Error Responses**:
+- 401 Unauthorized: Missing or invalid JWT token
+- 422 Unprocessable Entity: Title empty or exceeds 200 characters
+- 500 Internal Server Error
+
+**Validation Rules**:
+- Title: Required, 1-200 characters
+- Description: Optional, max 1000 characters
+- user_id: Automatically extracted from JWT, not in request body
+
+### GET /api/tasks
+
+**Purpose**: List all tasks for authenticated user
+
+**Request Headers**:
+```yaml
+Content-Type: application/json
+Authorization: Bearer <jwt_token>
+```
+
+**Query Parameters**:
+- `limit`: Optional integer (default 100) - Maximum tasks to return
+- `offset`: Optional integer (default 0) - Pagination offset
+
+**Success Response (200)**:
+```yaml
+{
+  "tasks": [
+    {
+      "id": "uuid",
+      "title": "string",
+      "description": "string or null",
+      "completed": boolean,
+      "user_id": "uuid",
+      "created_at": "ISO 8601 timestamp",
+      "completed_at": "ISO 8601 timestamp or null"
+    }
+  ],
+  "total": 10,
+  "completed": 3
+  "pending": 7
+}
+```
+
+**Error Responses**:
+- 401 Unauthorized: Missing or invalid JWT token
+- 500 Internal Server Error
+
+**Filtering**:
+- Results automatically filtered by user_id from JWT
+- Ordered by created_at DESC (latest first)
+
+### GET /api/tasks/{id}
+
+**Purpose**: Get specific task by ID
+
+**Request Headers**:
+```yaml
+Content-Type: application/json
+Authorization: Bearer <jwt_token>
+```
+
+**Success Response (200)**:
+```yaml
+{
+  "id": "uuid",
+  "title": "string",
+  "description": "string or null",
+  "completed": boolean,
+  "user_id": "uuid",
+  "created_at": "ISO 8601 timestamp",
+  "completed_at": "ISO 8601 timestamp or null"
+}
+```
+
+**Error Responses**:
+- 401 Unauthorized: Missing or invalid JWT token
+- 403 Forbidden: Task exists but user_id in JWT doesn't match task's user_id
+- 404 Not Found: Task with ID doesn't exist
+- 500 Internal Server Error
+
+**Ownership Verification**:
+- Database query must verify `task.user_id == extract_user_id_from_jwt()`
+
+### PUT /api/tasks/{id}
+
+**Purpose**: Update existing task
+
+**Request Headers**:
+```yaml
+Content-Type: application/json
+Authorization: Bearer <jwt_token>
+```
+
+**Request Body**:
+```yaml
+{
+  "title": "string (1-200 characters, optional)",
+  "description": "string (max 1000 characters, optional)"
+}
+```
+
+**Note**: At least one field must be provided.
+
+**Success Response (200)**:
+```yaml
+{
+  "id": "uuid",
+  "title": "string",
+  "description": "string or null",
+  "completed": boolean,
+  "user_id": "uuid",
+  "created_at": "ISO 8601 timestamp",
+  "completed_at": "ISO 8601 timestamp or null",
+  "updated_at": "ISO 8601 timestamp"
+}
+```
+
+**Error Responses**:
+- 401 Unauthorized: Missing or invalid JWT token
+- 403 Forbidden: Task exists but user doesn't own it
+- 404 Not Found: Task with ID doesn't exist
+- 422 Unprocessable Entity: All fields empty or exceed length limits
+- 500 Internal Server Error
+
+**Partial Updates**:
+- Only provided fields are updated
+- Unprovided fields remain unchanged
+- user_id cannot be updated (immutable ownership)
+
+### DELETE /api/tasks/{id}
+
+**Purpose**: Delete specific task
+
+**Request Headers**:
+```yaml
+Content-Type: application/json
+Authorization: Bearer <jwt_token>
+```
+
+**Request Body**: Empty
+
+**Success Response (200)**:
+```yaml
+{
+  "message": "Task deleted successfully",
+  "id": "uuid"
+}
+```
+
+**Error Responses**:
+- 401 Unauthorized: Missing or invalid JWT token
+- 403 Forbidden: Task exists but user doesn't own it
+- 404 Not Found: Task with ID doesn't exist
+- 500 Internal Server Error
+
+**Ownership Verification**:
+- Database query must verify `task.user_id == extract_user_id_from_jwt()` before deletion
+
+### PATCH /api/tasks/{id}/toggle
+
+**Purpose**: Toggle task completion status
+
+**Request Headers**:
+```yaml
+Content-Type: application/json
+Authorization: Bearer <jwt_token>
+```
+
+**Request Body**: Empty
+
+**Success Response (200)**:
+```yaml
+{
+  "id": "uuid",
+  "title": "string",
+  "description": "string or null",
+  "completed": true,  # or false
+  "user_id": "uuid",
+  "created_at": "ISO 8601 timestamp",
+  "completed_at": "ISO 8601 timestamp",  # Set on toggle to completed
+  "updated_at": "ISO 8601 timestamp"
+}
+```
+
+**Error Responses**:
+- 401 Unauthorized: Missing or invalid JWT token
+- 403 Forbidden: Task exists but user doesn't own it
+- 404 Not Found: Task with ID doesn't exist
+- 500 Internal Server Error
+
+**Toggle Logic**:
+- If completed == false: Set to true, set completed_at = NOW()
+- If completed == true: Set to false, set completed_at = NULL
+
+## Common Error Response Format
+
+### Standard Error Response Structure
+
+```yaml
+{
+  "error": {
+    "code": "string (e.g., UNAUTHORIZED)",
+    "message": "string (user-friendly explanation)",
+    "details": "object (optional, additional context)"
+  }
+}
+```
+
+### Error Codes Reference
+
+| Code | Title | Status | Description |
+|-------|--------|--------|-------------|
+| AUTH_REQUIRED | Authorization header missing | 401 |
+| INVALID_TOKEN | JWT token invalid or expired | 401 |
+| INVALID_CREDENTIALS | Wrong email or password | 401 |
+| FORBIDDEN | User doesn't own resource | 403 |
+| NOT_FOUND | Resource doesn't exist | 404 |
+| VALIDATION_ERROR | Input validation failed | 422 |
+| DUPLICATE_EMAIL | Email already registered | 409 |
+| SERVER_ERROR | Internal server error | 500 |
+
+## Rate Limiting (Optional but Recommended)
+
+**Purpose**: Prevent API abuse and rapid consecutive requests
+
+**Headers**:
+```yaml
+X-RateLimit-Limit: 100
+X-RateLimit-Remaining: 95
+X-RateLimit-Reset: 1640995200  # Unix timestamp
+```
+
+**Response (429)**:
+```yaml
+{
+  "error": {
+    "code": "RATE_LIMIT_EXCEEDED",
+    "message": "Too many requests. Please wait and try again.",
+    "retry_after": 60
+  }
+}
+```
+
+## OpenAPI/Swagger Documentation
+
+All endpoints will be automatically documented via FastAPI's OpenAPI integration at `/docs`.
+
+### OpenAPI Info Object
+
+```yaml
+{
+  "title": "Todo API - Phase II",
+  "version": "1.0.0",
+  "description": "Multi-user Todo application with JWT authentication",
+  "contact": {
+    "name": "API Support",
+    "email": "support@example.com"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8000",
+      "description": "Local development server"
+    }
+  ]
+}
+```
+
+### Security Schemes
+
+```yaml
+security:
+  - bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: "JWT authentication token"
+```
+
+## Summary
+
+This API contract provides:
+
+✅ **Complete authentication flow**: signup, sign-in, sign-out
+✅ **Full CRUD operations**: create, read, update, delete, toggle
+✅ **Multi-user isolation**: Ownership verification on all task operations
+✅ **Proper HTTP semantics**: Correct status codes for all scenarios
+✅ **JWT-based security**: Stateless authentication with shared secret
+✅ **Comprehensive error handling**: User-friendly messages for all error cases
+✅ **OpenAPI compatibility**: Auto-generated Swagger documentation
