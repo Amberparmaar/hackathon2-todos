@@ -7,7 +7,7 @@
  * This root layout wraps all pages with AuthProvider.
  */
 
-import { AuthProvider } from '../components/AuthProvider';
+import { AuthProvider } from '@/components/AuthProvider';
 import './globals.css';
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

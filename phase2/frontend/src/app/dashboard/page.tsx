@@ -11,12 +11,12 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '../../components/AuthProvider';
-import { ProtectedRoute } from '../../components/ProtectedRoute';
-import { TaskList } from '../../components/TaskList';
-import { TaskForm } from '../../components/TaskForm';
-import { Task, TaskListResponse } from '../../types';
-import { getTasks } from '../../lib/api';
+import { useAuth } from '@/components/AuthProvider';
+import { ProtectedRoute } from '@/components/ProtectedRoute';
+import { TaskList } from '@/components/TaskList';
+import { TaskForm } from '@/components/TaskForm';
+import { Task, TaskListResponse } from '@/types';
+import { getTasks } from '@/lib/api';
 
 /**
  * Dashboard page.

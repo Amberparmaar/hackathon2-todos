@@ -9,7 +9,7 @@
  * This component renders and manages list of tasks with responsive layout.
  */
 
-import { Task } from '../types';
+import { Task } from '@/types';
 import { TaskCard } from './TaskCard';
 
 /**

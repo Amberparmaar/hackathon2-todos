@@ -10,8 +10,8 @@
  */
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { signIn, signUp as apiSignUp, signOut as apiSignOut } from '../lib/api';
-import { User, AuthContextType } from '../types';
+import { signIn, signUp as apiSignUp, signOut as apiSignOut } from '@/lib/api';
+import { User, AuthContextType } from '@/types';
 
 // Create auth context
 // T-012: Context provider wraps children

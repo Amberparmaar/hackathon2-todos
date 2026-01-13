@@ -10,8 +10,8 @@
  */
 
 import { useState, useEffect } from 'react';
-import { Task, TaskCreate, TaskUpdate } from '../types';
-import { createTask, updateTask } from '../lib/api';
+import { Task, TaskCreate, TaskUpdate } from '@/types';
+import { createTask, updateTask } from '@/lib/api';
 
 /**
  * TaskForm component.

@@ -10,8 +10,8 @@
  */
 
 import { useState } from 'react';
-import { Task } from '../types';
-import { deleteTask, toggleTask } from '../lib/api';
+import { Task } from '@/types';
+import { deleteTask, toggleTask } from '@/lib/api';
 
 /**
  * TaskCard component.
