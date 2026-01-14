@@ -6,7 +6,6 @@ colorTo: red
 sdk: docker
 dockerfile: Dockerfile
 pinned: false
-license: other
 ---
 
 # Todo API Backend
