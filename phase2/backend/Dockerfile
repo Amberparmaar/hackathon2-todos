@@ -7,6 +7,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
-EXPOSE 7860
+# Expose port (Hugging Face will set the PORT environment variable)
+EXPOSE 8000
 
-CMD ["python", "app.py"]
+# Run the FastAPI application directly
+CMD ["sh", "-c", "uvicorn server:app --host 0.0.0.0 --port ${PORT:-8000}"]

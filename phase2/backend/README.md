@@ -3,16 +3,15 @@ title: Todo API Backend
 emoji: 🚀
 colorFrom: purple
 colorTo: red
-sdk: gradio
-sdk_version: 4.0.0
-app_file: app.py
+sdk: docker
+dockerfile: Dockerfile
 pinned: false
 license: mit
 ---
 
 # Todo API Backend
 
-This Space hosts a FastAPI backend for the Todo application.
+This Space hosts a FastAPI backend for the Todo application using Docker.
 
 ## API Endpoints
 - `/docs` - Interactive API documentation
