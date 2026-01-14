@@ -68,7 +68,13 @@ from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession as SQLAlche
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import func
 
+# Handle async driver for PostgreSQL
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite+aiosqlite:///./todo_app.db")
+if DATABASE_URL.startswith("postgresql://"):
+    DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
+elif DATABASE_URL.startswith("postgres://"):  # Alternative format
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql+asyncpg://", 1)
+
 engine = create_async_engine(DATABASE_URL, echo=False)
 AsyncSessionLocal = sessionmaker(engine, class_=SQLAlchemyAsyncSession, expire_on_commit=False)
 
