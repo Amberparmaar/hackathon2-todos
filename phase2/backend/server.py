@@ -4,6 +4,7 @@ Simple standalone server for Phase II Full-Stack Multi-User Web Application.
 
 import asyncio
 import os
+import re
 from fastapi import FastAPI, HTTPException, status, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -71,9 +72,20 @@ from sqlalchemy import func
 # Handle async driver for PostgreSQL
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite+aiosqlite:///./todo_app.db")
 if DATABASE_URL.startswith("postgresql://"):
+    # Replace with asyncpg driver and clean up incompatible parameters
     DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
+    # Remove parameters not supported by asyncpg
+    DATABASE_URL = re.sub(r'[&?]sslmode=[^&]*', '', DATABASE_URL)
+    DATABASE_URL = re.sub(r'[&?]channel_binding=[^&]*', '', DATABASE_URL)
+    # Ensure we have a clean URL
+    DATABASE_URL = DATABASE_URL.replace('?&', '?').rstrip('&')
 elif DATABASE_URL.startswith("postgres://"):  # Alternative format
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql+asyncpg://", 1)
+    # Remove parameters not supported by asyncpg
+    DATABASE_URL = re.sub(r'[&?]sslmode=[^&]*', '', DATABASE_URL)
+    DATABASE_URL = re.sub(r'[&?]channel_binding=[^&]*', '', DATABASE_URL)
+    # Ensure we have a clean URL
+    DATABASE_URL = DATABASE_URL.replace('?&', '?').rstrip('&')
 
 engine = create_async_engine(DATABASE_URL, echo=False)
 AsyncSessionLocal = sessionmaker(engine, class_=SQLAlchemyAsyncSession, expire_on_commit=False)
