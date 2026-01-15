@@ -163,8 +163,12 @@ def get_current_user_id(credentials: HTTPAuthorizationCredentials = Depends(HTTP
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Create tables
-    async with engine.begin() as conn:
-        await conn.run_sync(SQLModel.metadata.create_all)
+    try:
+        async with engine.begin() as conn:
+            await conn.run_sync(SQLModel.metadata.create_all)
+    except Exception as e:
+        print(f"Error initializing database: {e}")
+        # Don't raise the exception here to avoid crashing the app
     yield
 
 app = FastAPI(lifespan=lifespan)
