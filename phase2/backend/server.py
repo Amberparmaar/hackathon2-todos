@@ -87,7 +87,16 @@ elif DATABASE_URL.startswith("postgres://"):  # Alternative format
     # Ensure we have a clean URL
     DATABASE_URL = DATABASE_URL.replace('?&', '?').rstrip('&')
 
-engine = create_async_engine(DATABASE_URL, echo=False)
+engine = create_async_engine(
+    DATABASE_URL,
+    echo=False,
+    pool_size=5,
+    max_overflow=10,
+    pool_pre_ping=True,  # Verify connections before use
+    pool_recycle=300,    # Recycle connections every 5 minutes
+    pool_timeout=30,     # Timeout for getting connection from pool
+    pool_reset_on_return='commit'  # Reset connection when returning to pool
+)
 AsyncSessionLocal = sessionmaker(engine, class_=SQLAlchemyAsyncSession, expire_on_commit=False)
 
 # SQLModel definitions
