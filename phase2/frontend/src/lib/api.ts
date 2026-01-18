@@ -21,7 +21,7 @@ import {
 } from '../types';
 
 // API base URL from environment
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://amberparmaar-backend-todo.hf.space';
 
 /**
  * Get JWT token from localStorage.

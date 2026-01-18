@@ -23,4 +23,4 @@ This Space hosts a FastAPI backend for the Todo application using Docker.
 ## Environment Variables
 Set these secrets in your Space settings:
 - `BETTER_AUTH_SECRET`: your-auth-secret
-- `DATABASE_URL`: your-database-url
+- `DATABASE_URL`: your-database-url (PostgreSQL connection string)
