@@ -37,7 +37,7 @@ export default function HomePage() {
 
         <div className="space-y-4">
           <a
-            href="/signin"
+            href="./signin"
             className="w-full flex items-center justify-center px-6 py-4 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl hover:from-purple-700 hover:to-blue-700 transition-all duration-200 font-medium text-lg shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
           >
             Sign In

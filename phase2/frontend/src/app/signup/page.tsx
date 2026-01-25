@@ -69,31 +69,48 @@ export default function SignUpPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
-      <div className="max-w-md w-full space-y-8">
-        <div className="text-center">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            Sign Up
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-blue-50 flex items-center justify-center px-4 py-12">
+      <div className="max-w-md w-full">
+        <div className="text-center mb-8">
+          <div className="mx-auto w-20 h-20 bg-gradient-to-br from-purple-500 to-blue-500 rounded-2xl flex items-center justify-center mb-4 shadow-lg">
+            <svg
+              className="w-10 h-10 text-white"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+              />
+            </svg>
+          </div>
+
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent mb-2">
+            Create Account
           </h1>
-          <p className="text-gray-600">
-            Create your account to start managing your tasks.
+          <p className="text-gray-600 dark:text-gray-400">
+            Join our platform to start managing your tasks efficiently
           </p>
         </div>
 
         {/* Sign-up form */}
         {/* T-014: Form with email, password, confirm password inputs */}
-        <form onSubmit={handleSubmit} className="mt-8 space-y-6 bg-white p-8 rounded-lg shadow-md">
+        <form onSubmit={handleSubmit} className="space-y-6 bg-white dark:bg-gray-800 p-8 rounded-2xl shadow-xl border border-gray-100 dark:border-gray-700">
           {error && (
-            <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+            <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl text-sm text-red-700 dark:text-red-300">
               {error}
             </div>
           )}
 
-          <div className="space-y-4">
+          <div className="space-y-5">
             {/* Email input */}
             {/* T-014: Email input field with validation */}
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Email Address
               </label>
               <input
@@ -103,7 +120,7 @@ export default function SignUpPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 placeholder="you@example.com"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50"
+                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-all duration-200"
                 disabled={loading}
               />
             </div>
@@ -111,7 +128,7 @@ export default function SignUpPage() {
             {/* Password input */}
             {/* T-014: Password input field (type="password", min 8 chars) */}
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Password
               </label>
               <input
@@ -121,7 +138,7 @@ export default function SignUpPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 placeholder="At least 8 characters"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50"
+                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-all duration-200"
                 disabled={loading}
                 minLength={8}
               />
@@ -130,7 +147,7 @@ export default function SignUpPage() {
             {/* Confirm password input */}
             {/* T-014: Confirm password field */}
             <div>
-              <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-1">
+              <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Confirm Password
               </label>
               <input
@@ -140,7 +157,7 @@ export default function SignUpPage() {
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 required
                 placeholder="Re-enter your password"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50"
+                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-white transition-all duration-200"
                 disabled={loading}
                 minLength={8}
               />
@@ -152,7 +169,7 @@ export default function SignUpPage() {
           <button
             type="submit"
             disabled={loading || !email || !password || !confirmPassword}
-            className="w-full px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            className="w-full px-6 py-4 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl hover:from-purple-700 hover:to-blue-700 transition-all duration-200 font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
           >
             {loading ? (
               <>
@@ -168,15 +185,13 @@ export default function SignUpPage() {
           </button>
 
           {/* Sign in link */}
-          <div className="text-center text-sm text-gray-600">
+          <div className="text-center text-sm text-gray-600 dark:text-gray-400 pt-2">
             Already have an account?{' '}
-            <a href="/signin" className="text-blue-500 hover:text-blue-600 font-medium">
+            <a href="/signin" className="text-purple-600 hover:text-purple-700 font-medium transition-colors">
               Sign in
             </a>
           </div>
         </form>
-
-        {/* T-014: Responsive layout with Tailwind styling */}
       </div>
     </div>
   );
