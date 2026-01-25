@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { XIcon, CheckIcon } from 'lucide-react';
 import { Task, TaskCreate, TaskUpdate } from '@/types';
+import { createTask, updateTask } from '@/lib/api';
 
 export function ModernTaskForm({
   task,
@@ -48,8 +49,13 @@ export function ModernTaskForm({
 
     setLoading(true);
     try {
-      // In a real app, you would call the API here
-      console.log('Submitting task:', { title: title.trim(), description: description.trim() || undefined });
+      if (task) {
+        // Update existing task
+        await updateTask(task.id, { title: title.trim(), description: description.trim() || undefined });
+      } else {
+        // Create new task
+        await createTask(title.trim(), description.trim() || undefined);
+      }
 
       // Reset form and call onSubmit callback
       setTitle('');
