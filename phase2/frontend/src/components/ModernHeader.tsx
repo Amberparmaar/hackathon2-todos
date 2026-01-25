@@ -14,7 +14,17 @@ export function ModernHeader({
   user?: { email: string } | null;
   onSignOut?: () => void;
 }) {
-  const [darkMode, setDarkMode] = useState(false);
+  const [darkMode, setDarkMode] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const savedDarkMode = localStorage.getItem('darkMode');
+      if (savedDarkMode !== null) {
+        return savedDarkMode === 'true';
+      }
+      // Check system preference
+      return window.matchMedia('(prefers-color-scheme: dark)').matches;
+    }
+    return false;
+  });
 
   const filters = [
     { id: 'all', label: 'All' },
@@ -23,8 +33,18 @@ export function ModernHeader({
   ];
 
   const toggleDarkMode = () => {
-    setDarkMode(!darkMode);
-    // In a real app, you might persist this preference
+    const newDarkMode = !darkMode;
+    setDarkMode(newDarkMode);
+
+    // Apply dark mode to document
+    if (newDarkMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+
+    // Persist preference in localStorage
+    localStorage.setItem('darkMode', newDarkMode.toString());
   };
 
   return (
