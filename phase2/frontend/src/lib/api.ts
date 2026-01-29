@@ -98,11 +98,9 @@ async function apiRequest<T>(
   if (!response.ok) {
     // T-015: Error handling for 401, 403, 404, 500
     if (response.status === 401) {
-      // Unauthorized - redirect to sign-in
+      // Unauthorized - remove token but don't redirect here
+      // Redirecting should be handled by components
       removeToken();
-      if (typeof window !== 'undefined') {
-        window.location.href = '/signin';
-      }
       throw new Error('Unauthorized. Please sign in again.');
     }
     throw new Error(data.detail || data.message || 'An error occurred');

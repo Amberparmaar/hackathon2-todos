@@ -49,22 +49,35 @@ function DashboardContent() {
 
   // Update URL when filter changes
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    if (activeFilter === 'all') {
-      params.delete('filter');
-    } else {
-      params.set('filter', activeFilter);
-    }
+    // Check if we're in the browser before accessing window
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      if (activeFilter === 'all') {
+        params.delete('filter');
+      } else {
+        params.set('filter', activeFilter);
+      }
 
-    // Update the URL without causing a page refresh
-    const newUrl = `${window.location.pathname}${params.toString() ? '?' + params.toString() : ''}`;
-    window.history.replaceState({}, '', newUrl);
+      // Update the URL without causing a page refresh
+      const newUrl = `${window.location.pathname}${params.toString() ? '?' + params.toString() : ''}`;
+      window.history.replaceState({}, '', newUrl);
+    }
   }, [activeFilter]);
 
   // Load user's tasks on mount
   // T-020: Loads tasks via API client on mount
   useEffect(() => {
-    loadTasks();
+    const loadTasksOnMount = async () => {
+      try {
+        await loadTasks();
+      } catch (err) {
+        console.error('Error loading tasks on mount:', err);
+        setError('Failed to load tasks. Please refresh the page.');
+        setLoading(false);
+      }
+    };
+
+    loadTasksOnMount();
   }, []);
 
   // Filter tasks based on active filter
@@ -87,16 +100,18 @@ function DashboardContent() {
 
   // Listen for add task clicks from sidebar
   useEffect(() => {
-    const handleAddTaskClick = () => {
-      setShowForm(true);
-      setEditingTask(undefined);
-      setSidebarOpen(false); // Close sidebar after clicking add task
-    };
+    if (typeof window !== 'undefined') {
+      const handleAddTaskClick = () => {
+        setShowForm(true);
+        setEditingTask(undefined);
+        setSidebarOpen(false); // Close sidebar after clicking add task
+      };
 
-    window.addEventListener('addTaskClick', handleAddTaskClick);
-    return () => {
-      window.removeEventListener('addTaskClick', handleAddTaskClick);
-    };
+      window.addEventListener('addTaskClick', handleAddTaskClick);
+      return () => {
+        window.removeEventListener('addTaskClick', handleAddTaskClick);
+      };
+    }
   }, []);
 
   const loadTasks = async () => {
