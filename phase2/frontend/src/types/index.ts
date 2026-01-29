@@ -65,6 +65,7 @@ export interface Task {
   description: string | null;
   completed: boolean;
   user_id: string;
+  due_date: string | null;
   created_at: string;
   completed_at: string | null;
 }
@@ -77,6 +78,7 @@ export interface Task {
 export interface TaskCreate {
   title: string;
   description?: string;
+  due_date?: string;
 }
 
 /**
@@ -87,6 +89,7 @@ export interface TaskCreate {
 export interface TaskUpdate {
   title?: string;
   description?: string;
+  due_date?: string;
 }
 
 /**

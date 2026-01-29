@@ -73,14 +73,24 @@ export function ModernTaskCard({
             </p>
           )}
 
-          <div className="flex items-center gap-2 mt-2">
+          <div className="flex flex-wrap gap-2 mt-2">
             <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200">
-              {new Date(task.created_at).toLocaleDateString()}
+              Created: {new Date(task.created_at).toLocaleDateString()} {new Date(task.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
             </span>
+
+            {task.due_date && (
+              <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                new Date(task.due_date) < new Date() && !task.completed
+                  ? 'bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200'
+                  : 'bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200'
+              }`}>
+                Due: {new Date(task.due_date).toLocaleDateString()} {new Date(task.due_date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+              </span>
+            )}
 
             {task.completed && task.completed_at && (
               <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200">
-                Completed
+                Completed: {new Date(task.completed_at).toLocaleDateString()} {new Date(task.completed_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
               </span>
             )}
           </div>

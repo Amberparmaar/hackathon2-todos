@@ -16,6 +16,8 @@ export function ModernTaskForm({
 }) {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  const [dueDate, setDueDate] = useState('');
+  const [dueTime, setDueTime] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -24,6 +26,16 @@ export function ModernTaskForm({
     if (task) {
       setTitle(task.title);
       setDescription(task.description || '');
+
+      // Parse due date if it exists
+      if (task.due_date) {
+        const dueDateObj = new Date(task.due_date);
+        setDueDate(dueDateObj.toISOString().split('T')[0]); // Format as YYYY-MM-DD
+        setDueTime(dueDateObj.toTimeString().substring(0, 5)); // Format as HH:MM
+      } else {
+        setDueDate('');
+        setDueTime('');
+      }
     }
   }, [task]);
 
@@ -49,17 +61,32 @@ export function ModernTaskForm({
 
     setLoading(true);
     try {
+      // Combine date and time into a single ISO string if both are provided
+      let combinedDueDate: string | undefined = undefined;
+      if (dueDate && dueTime) {
+        combinedDueDate = new Date(`${dueDate}T${dueTime}`).toISOString();
+      } else if (dueDate) {
+        // If only date is provided, use the start of the day
+        combinedDueDate = new Date(dueDate).toISOString();
+      }
+
       if (task) {
         // Update existing task
-        await updateTask(task.id, { title: title.trim(), description: description.trim() || undefined });
+        await updateTask(task.id, {
+          title: title.trim(),
+          description: description.trim() || undefined,
+          due_date: combinedDueDate
+        });
       } else {
         // Create new task
-        await createTask(title.trim(), description.trim() || undefined);
+        await createTask(title.trim(), description.trim() || undefined, combinedDueDate);
       }
 
       // Reset form and call onSubmit callback
       setTitle('');
       setDescription('');
+      setDueDate(''); // Reset due date
+      setDueTime(''); // Reset due time
       setError('');
       onSubmit?.();
     } catch (error) {
@@ -135,6 +162,36 @@ export function ModernTaskForm({
             {error && description.length > 1000 && (
               <span className="text-xs text-red-500">Description is too long</span>
             )}
+          </div>
+        </div>
+
+        {/* Due Date and Time */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label htmlFor="dueDate" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Due Date <span className="text-gray-400">(optional)</span>
+            </label>
+            <input
+              type="date"
+              id="dueDate"
+              value={dueDate}
+              onChange={(e) => setDueDate(e.target.value)}
+              className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+              disabled={loading}
+            />
+          </div>
+          <div>
+            <label htmlFor="dueTime" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Due Time <span className="text-gray-400">(optional)</span>
+            </label>
+            <input
+              type="time"
+              id="dueTime"
+              value={dueTime}
+              onChange={(e) => setDueTime(e.target.value)}
+              className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all"
+              disabled={loading}
+            />
           </div>
         </div>
 

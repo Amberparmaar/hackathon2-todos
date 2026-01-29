@@ -46,15 +46,16 @@ class TaskBase(BaseModel):
     description: Optional[str] = None
 
 class TaskCreate(TaskBase):
-    pass
+    due_date: Optional[datetime] = None
 
 class TaskUpdate(TaskBase):
-    pass
+    due_date: Optional[datetime] = None
 
 class TaskResponse(TaskBase):
     id: UUID
     user_id: UUID
     completed: bool
+    due_date: Optional[datetime] = None
     created_at: datetime
     completed_at: Optional[datetime] = None
 
@@ -116,6 +117,7 @@ class Task(SQLModel, table=True):
     description: Optional[str] = Field(default=None, max_length=1000)
     completed: bool = Field(default=False)
     user_id: UUID = Field(index=True)  # Foreign key to user
+    due_date: Optional[datetime] = Field(default=None)  # New due date field
     created_at: datetime = Field(default_factory=datetime.utcnow)
     completed_at: Optional[datetime] = Field(default=None)
 
@@ -176,7 +178,7 @@ app = FastAPI(lifespan=lifespan)
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:3001", "http://127.0.0.1:3000", "http://127.0.0.1:3001"],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -318,6 +320,7 @@ async def create_task(
     new_task = Task(
         title=task_data.title,
         description=task_data.description,
+        due_date=task_data.due_date,
         user_id=user_uuid
     )
     session.add(new_task)
@@ -330,6 +333,7 @@ async def create_task(
         description=new_task.description,
         completed=new_task.completed,
         user_id=new_task.user_id,
+        due_date=new_task.due_date,
         created_at=new_task.created_at,
         completed_at=new_task.completed_at
     )
@@ -380,6 +384,7 @@ async def update_task(
     # Update fields
     task.title = task_update.title
     task.description = task_update.description
+    task.due_date = task_update.due_date
 
     session.add(task)
     await session.commit()
@@ -391,6 +396,7 @@ async def update_task(
         description=task.description,
         completed=task.completed,
         user_id=task.user_id,
+        due_date=task.due_date,
         created_at=task.created_at,
         completed_at=task.completed_at
     )

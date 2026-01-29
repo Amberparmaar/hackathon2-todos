@@ -179,9 +179,10 @@ export async function signOut(): Promise<SignOutResponse> {
  */
 export async function createTask(
   title: string,
-  description?: string
+  description?: string,
+  dueDate?: string
 ): Promise<Task> {
-  const taskCreate: TaskCreate = { title, description };
+  const taskCreate: TaskCreate = { title, description, due_date: dueDate };
   return apiRequest<Task>('/api/tasks', {
     method: 'POST',
     body: JSON.stringify(taskCreate),

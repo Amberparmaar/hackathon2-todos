@@ -10,13 +10,15 @@
  */
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/components/AuthProvider';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { ModernTaskList } from '@/components/ModernTaskList';
 import { ModernTaskForm } from '@/components/ModernTaskForm';
 import { ModernFab } from '@/components/ModernFab';
 import { ModernHeader } from '@/components/ModernHeader';
+import { Sidebar } from '@/components/Sidebar';
+import { DateTimeDisplay } from '@/components/DateTimeDisplay';
 import { Task, TaskListResponse } from '@/types';
 import { getTasks, deleteTask, toggleTask } from '@/lib/api';
 
@@ -36,6 +38,7 @@ import { getTasks, deleteTask, toggleTask } from '@/lib/api';
  */
 export default function DashboardPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { signOut, user } = useAuth();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [filteredTasks, setFilteredTasks] = useState<Task[]>([]);
@@ -45,6 +48,31 @@ export default function DashboardPage() {
   const [editingTask, setEditingTask] = useState<Task | undefined>(undefined);
   const [showForm, setShowForm] = useState(false);
   const [activeFilter, setActiveFilter] = useState<'all' | 'active' | 'completed'>('all');
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // Initialize filter from URL params
+  useEffect(() => {
+    const filterParam = searchParams?.get('filter');
+    if (filterParam === 'active' || filterParam === 'completed') {
+      setActiveFilter(filterParam);
+    } else {
+      setActiveFilter('all');
+    }
+  }, [searchParams]);
+
+  // Update URL when filter changes
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (activeFilter === 'all') {
+      params.delete('filter');
+    } else {
+      params.set('filter', activeFilter);
+    }
+
+    // Update the URL without causing a page refresh
+    const newUrl = `${window.location.pathname}${params.toString() ? '?' + params.toString() : ''}`;
+    window.history.replaceState({}, '', newUrl);
+  }, [activeFilter]);
 
   // Load user's tasks on mount
   // T-020: Loads tasks via API client on mount
@@ -69,6 +97,20 @@ export default function DashboardPage() {
 
     setFilteredTasks(filtered);
   }, [tasks, activeFilter]);
+
+  // Listen for add task clicks from sidebar
+  useEffect(() => {
+    const handleAddTaskClick = () => {
+      setShowForm(true);
+      setEditingTask(undefined);
+      setSidebarOpen(false); // Close sidebar after clicking add task
+    };
+
+    window.addEventListener('addTaskClick', handleAddTaskClick);
+    return () => {
+      window.removeEventListener('addTaskClick', handleAddTaskClick);
+    };
+  }, []);
 
   const loadTasks = async () => {
     setLoading(true);
@@ -133,54 +175,71 @@ export default function DashboardPage() {
 
   return (
     <ProtectedRoute>
-      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-blue-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
-        <ModernHeader
-          activeFilter={activeFilter}
-          onFilterChange={setActiveFilter}
-          user={user}
-          onSignOut={handleSignOut}
-        />
+      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-white to-blue-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 flex">
+        {/* Sidebar for desktop */}
+        <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
-        {/* Main content */}
-        <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          {/* Task form (shown when adding or editing) */}
-          {showForm && (
-            <div className="mb-8">
-              <ModernTaskForm
-                task={editingTask}
-                onSubmit={handleFormSubmit}
-                onCancel={() => {
-                  setShowForm(false);
-                  setEditingTask(undefined);
-                }}
-              />
-            </div>
-          )}
-
-          {/* Error message */}
-          {error && (
-            <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl text-sm text-red-700 dark:text-red-300 shadow-sm">
-              {error}
-            </div>
-          )}
-
-          {/* Task list */}
-          {/* T-020: Displays tasks with title, description, status */}
-          {/* T-020: Loading spinner while fetching */}
-          {/* T-020: Empty state: "No tasks yet. Create your first task!" */}
-          {/* T-020: Responsive layout (mobile: single column, desktop: grid/list) */}
-          <ModernTaskList
-            tasks={tasks}
-            filteredTasks={filteredTasks}
-            loading={loading}
-            onEdit={handleEditTask}
-            onDelete={handleDeleteTask}
-            onToggle={handleToggleTask}
+        <div className="flex-1 flex flex-col">
+          <ModernHeader
+            activeFilter={activeFilter}
+            onFilterChange={setActiveFilter}
+            user={user}
+            onSignOut={handleSignOut}
+            onMenuToggle={() => setSidebarOpen(!sidebarOpen)}
           />
-        </main>
 
-        {/* Floating action button */}
-        <ModernFab onClick={() => setShowForm(true)} disabled={showForm} />
+          {/* Main content */}
+          <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1">
+            {/* Date and Time Display */}
+            <div className="mb-8">
+              <DateTimeDisplay />
+            </div>
+
+            {/* Task form (shown when adding or editing) */}
+            {showForm && (
+              <div className="mb-8">
+                <ModernTaskForm
+                  task={editingTask}
+                  onSubmit={handleFormSubmit}
+                  onCancel={() => {
+                    setShowForm(false);
+                    setEditingTask(undefined);
+                  }}
+                />
+              </div>
+            )}
+
+            {/* Error message */}
+            {error && (
+              <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl text-sm text-red-700 dark:text-red-300 shadow-sm">
+                {error}
+              </div>
+            )}
+
+            {/* Task list */}
+            {/* T-020: Displays tasks with title, description, status */}
+            {/* T-020: Loading spinner while fetching */}
+            {/* T-020: Empty state: "No tasks yet. Create your first task!" */}
+            {/* T-020: Responsive layout (mobile: single column, desktop: grid/list) */}
+            <ModernTaskList
+              tasks={tasks}
+              filteredTasks={filteredTasks}
+              loading={loading}
+              onEdit={handleEditTask}
+              onDelete={handleDeleteTask}
+              onToggle={handleToggleTask}
+            />
+          </main>
+
+          {/* Floating action button */}
+          <ModernFab
+            onClick={() => {
+              setShowForm(true);
+              setSidebarOpen(false); // Close sidebar when opening form
+            }}
+            disabled={showForm}
+          />
+        </div>
       </div>
     </ProtectedRoute>
   );
