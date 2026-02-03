@@ -7,11 +7,8 @@ const nextConfig = {
       'https://amberparmaar-backend-todo.hf.space',
   },
   experimental: {
-    // Ensure CSS is properly processed
     optimizeCss: true,
   },
-  // Ensure all static assets are handled properly
-  assetPrefix: './',
 };
 
-module.exports = nextConfig
+module.exports = nextConfig;
