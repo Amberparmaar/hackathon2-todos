@@ -18,8 +18,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const storedToken = localStorage.getItem('auth_token');
-    if (storedToken) {
+    const storedUser = localStorage.getItem('auth_user');
+    if (storedToken && storedUser) {
       setToken(storedToken);
+      try {
+        setUser(JSON.parse(storedUser));
+      } catch (e) {
+        console.error('Failed to parse stored user:', e);
+        localStorage.removeItem('auth_user');
+      }
     }
     setLoading(false);
   }, []);
@@ -31,6 +38,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const response = await signIn(email, password);
       setUser(response.user);
       setToken(response.token);
+      localStorage.setItem('auth_user', JSON.stringify(response.user));
     } finally {
       setLoading(false);
     }
@@ -43,6 +51,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const response = await apiSignUp(email, password);
       setUser(response.user);
       setToken(response.token);
+      localStorage.setItem('auth_user', JSON.stringify(response.user));
     } finally {
       setLoading(false);
     }
@@ -55,6 +64,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await apiSignOut();
       setUser(null);
       setToken(null);
+      localStorage.removeItem('auth_user');
     } finally {
       setLoading(false);
     }
