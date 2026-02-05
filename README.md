@@ -31,9 +31,9 @@ The Evolution of Todo project showcases a systematic approach to software develo
 - **Constraints**: Use only specified libraries
 
 ### Phase III: AI-Powered Chatbot
-- **Technology**: OpenAI ChatKit UI, FastAPI, OpenAI Agents SDK, Official MCP SDK
-- **Features**: Basic CRUD + Natural Language Interface
-- **Constraints**: Stateless server design
+- **Technology**: OpenAI ChatKit UI, FastAPI, Cohere API, MCP-style tools
+- **Features**: Natural Language Processing + Task Management
+- **Constraints**: Stateless server with database-persisted conversations
 
 ### Phase IV: Local Kubernetes Deployment
 - **Technology**: Docker, Minikube, Helm, kubectl-ai/kagent
@@ -47,14 +47,14 @@ The Evolution of Todo project showcases a systematic approach to software develo
 
 ## ✅ Current Status
 
-### Phase II - Full-Stack Web App (Currently Active)
-- ✅ Backend: FastAPI with SQLModel, JWT authentication, PostgreSQL support
-- ✅ Frontend: Next.js 16 with TypeScript and Tailwind CSS
-- ✅ Authentication: Complete signup/signin/signout flow
-- ✅ Task Management: Full CRUD operations (create, read, update, delete, toggle)
-- ✅ Database: User and task models with proper relationships
-- ✅ API: Well-designed REST API with proper error handling
-- ✅ UI: Modern, responsive interface with filtering and statistics
+### Phase III - AI-Powered Chatbot (Currently Active)
+- ✅ Backend: FastAPI with Cohere integration, MCP-style tools
+- ✅ AI Integration: Natural language processing for task management
+- ✅ Conversations: Database-persisted conversation history
+- ✅ Authentication: JWT authentication with user isolation
+- ✅ Task Management: All CRUD operations via natural language
+- ✅ Frontend: OpenAI ChatKit configured for custom endpoint
+- ✅ Architecture: Stateless server design with DB persistence
 
 ## 🏗️ Architecture
 
@@ -216,8 +216,8 @@ The project includes custom agents and skills designed for specific tasks:
 | Phase | Status | Description |
 |-------|--------|-------------|
 | Phase I | Planned | In-memory Python console app |
-| **Phase II** | **✅ Complete** | **Full-stack web app with authentication** |
-| Phase III | Planned | AI-powered chatbot |
+| Phase II | ✅ Complete | Full-stack web app with authentication |
+| **Phase III** | **✅ Complete** | **AI-powered chatbot with Cohere integration** |
 | Phase IV | Planned | Local Kubernetes deployment |
 | Phase V | Planned | Advanced cloud deployment |
 

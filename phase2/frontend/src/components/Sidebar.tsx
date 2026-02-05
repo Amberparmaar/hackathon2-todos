@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { CalendarIcon, CheckCircleIcon, ClockIcon, PlusCircleIcon, UserIcon, XIcon } from 'lucide-react';
+import { CalendarIcon, CheckCircleIcon, ClockIcon, PlusCircleIcon, UserIcon, XIcon, Bot } from 'lucide-react';
 
 export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
   const pathname = usePathname();
@@ -57,6 +57,13 @@ export function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => v
       // Trigger adding a new task
       const event = new CustomEvent('addTaskClick');
       window.dispatchEvent(event);
+    }},
+    { href: '/dashboard', icon: Bot, label: 'AI Assistant', action: () => {
+      // Scroll to the chatbot section
+      const chatbotSection = document.querySelector('#chatbot-section');
+      if (chatbotSection) {
+        chatbotSection.scrollIntoView({ behavior: 'smooth' });
+      }
     }},
     { href: '/profile', icon: UserIcon, label: 'Profile' },
   ];

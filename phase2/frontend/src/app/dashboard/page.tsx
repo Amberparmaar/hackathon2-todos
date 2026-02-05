@@ -19,6 +19,7 @@ import { ModernFab } from '@/components/ModernFab';
 import { ModernHeader } from '@/components/ModernHeader';
 import { Sidebar } from '@/components/Sidebar';
 import { DateTimeDisplay } from '@/components/DateTimeDisplay';
+import ChatBot from '@/components/ChatBot';
 import { Task, TaskListResponse } from '@/types';
 import { getTasks, deleteTask, toggleTask } from '@/lib/api';
 
@@ -194,6 +195,11 @@ function DashboardContent() {
           {/* Date and Time Display */}
           <div className="mb-8">
             <DateTimeDisplay />
+          </div>
+
+          {/* ChatBot Section */}
+          <div id="chatbot-section" className="mb-12">
+            <ChatBot />
           </div>
 
           {/* Task form (shown when adding or editing) */}
