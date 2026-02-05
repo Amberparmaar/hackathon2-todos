@@ -1,5 +1,5 @@
 """
-Simple standalone server for Phase II Full-Stack Multi-User Web Application.
+Simple standalone server for Phase II Full-Stack Multi-User Web Application with AI Chatbot.
 """
 
 import asyncio
@@ -19,11 +19,55 @@ from pydantic import BaseModel
 from contextlib import asynccontextmanager
 import uvicorn
 
+# Import cohere for AI integration
+try:
+    import cohere
+    COHERE_AVAILABLE = True
+except ImportError:
+    COHERE_AVAILABLE = False
+    print("Warning: Cohere not installed. Install with 'pip install cohere'")
+
 # Configuration
 SECRET_KEY = os.getenv("BETTER_AUTH_SECRET", "my-super-secret-key")
 ALGORITHM = "HS256"
 
 # Models
+
+# Conversation models
+class Conversation(SQLModel, table=True):
+    __tablename__ = "conversations"
+    __table_args__ = {'extend_existing': True}  # Allow redefinition
+
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    user_id: UUID = Field(index=True)  # Foreign key to user
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+class Message(SQLModel, table=True):
+    __tablename__ = "messages"
+    __table_args__ = {'extend_existing': True}  # Allow redefinition
+
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    conversation_id: UUID = Field(index=True)  # Foreign key to conversation
+    role: str = Field(regex="^(user|assistant)$")  # user or assistant
+    content: str = Field(max_length=10000)
+    timestamp: datetime = Field(default_factory=datetime.utcnow)
+
+# Chat request/response models
+class ChatMessageRequest(BaseModel):
+    message: str
+    conversation_id: Optional[str] = None
+
+class ToolCall(BaseModel):
+    name: str
+    arguments: dict
+
+class ChatResponse(BaseModel):
+    response: str
+    conversation_id: str
+    tool_calls: list[ToolCall] = []
+    message_id: str
+
 class UserBase(BaseModel):
     email: str
 
@@ -117,7 +161,6 @@ class Task(SQLModel, table=True):
     description: Optional[str] = Field(default=None, max_length=1000)
     completed: bool = Field(default=False)
     user_id: UUID = Field(index=True)  # Foreign key to user
-    due_date: Optional[datetime] = Field(default=None)  # New due date field
     created_at: datetime = Field(default_factory=datetime.utcnow)
     completed_at: Optional[datetime] = Field(default=None)
 
@@ -167,6 +210,10 @@ async def lifespan(app: FastAPI):
     # Create tables
     try:
         async with engine.begin() as conn:
+            # Import all models to ensure they're registered with SQLModel
+            from sqlmodel import SQLModel
+            # Make sure all model classes are imported before creating tables
+            # The models are already defined in this file
             await conn.run_sync(SQLModel.metadata.create_all)
     except Exception as e:
         print(f"Error initializing database: {e}")
@@ -460,10 +507,662 @@ async def toggle_task(
 async def health_check():
     return {"status": "healthy", "version": "1.0.0"}
 
+# Conversation models
+class Conversation(SQLModel, table=True):
+    __tablename__ = "conversations"
+    __table_args__ = {'extend_existing': True}  # Allow redefinition
+
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    user_id: UUID = Field(index=True)  # Foreign key to user
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+class Message(SQLModel, table=True):
+    __tablename__ = "messages"
+    __table_args__ = {'extend_existing': True}  # Allow redefinition
+
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    conversation_id: UUID = Field(index=True)  # Foreign key to conversation
+    role: str = Field(regex="^(user|assistant)$")  # user or assistant
+    content: str = Field(max_length=10000)
+    timestamp: datetime = Field(default_factory=datetime.utcnow)
+
+
+# Chat request/response models
+class ChatMessageRequest(BaseModel):
+    message: str
+    conversation_id: Optional[str] = None
+
+class ToolCall(BaseModel):
+    name: str
+    arguments: dict
+
+class ChatResponse(BaseModel):
+    response: str
+    conversation_id: str
+    tool_calls: list[ToolCall] = []
+    message_id: str
+
+
+# Helper function to initialize Cohere client
+def get_cohere_client():
+    if not COHERE_AVAILABLE:
+        return None
+
+    api_key = os.getenv("COHERE_API_KEY")
+    if not api_key:
+        print("Warning: COHERE_API_KEY not set in environment")
+        return None
+
+    try:
+        client = cohere.Client(api_key)
+        return client
+    except Exception as e:
+        print(f"Error initializing Cohere client: {e}")
+        return None
+
+# Tool functions for the AI to use
+async def add_task_tool(session: AsyncSession, user_id: UUID, title: str, description: Optional[str] = None):
+    """Tool to add a new task to the user's list."""
+    new_task = Task(
+        title=title,
+        description=description,
+        user_id=user_id,
+        completed=False
+    )
+    session.add(new_task)
+    await session.commit()
+    await session.refresh(new_task)
+
+    return {
+        "success": True,
+        "task_id": str(new_task.id),
+        "message": f"Added task '{title}' successfully"
+    }
+
+async def list_tasks_tool(session: AsyncSession, user_id: UUID, status: Optional[str] = "all"):
+    """Tool to list tasks for the user."""
+    query = select(Task).where(Task.user_id == user_id)
+
+    if status == "pending":
+        query = query.where(Task.completed == False)
+    elif status == "completed":
+        query = query.where(Task.completed == True)
+
+    result = await session.execute(query)
+    tasks = result.scalars().all()
+
+    return {
+        "success": True,
+        "tasks": [
+            {
+                "id": str(task.id),
+                "title": task.title,
+                "description": task.description,
+                "completed": task.completed
+            }
+            for task in tasks
+        ]
+    }
+
+async def complete_task_tool(session: AsyncSession, user_id: UUID, task_id: str):
+    """Tool to mark a task as completed."""
+    try:
+        task_uuid = UUID(task_id)
+    except ValueError:
+        return {"success": False, "message": "Invalid task ID format"}
+
+    result = await session.execute(
+        select(Task).where(Task.id == task_uuid, Task.user_id == user_id)
+    )
+    task = result.scalar_one_or_none()
+
+    if not task:
+        return {"success": False, "message": "Task not found or access denied"}
+
+    task.completed = True
+    task.completed_at = datetime.utcnow()
+    session.add(task)
+    await session.commit()
+
+    return {
+        "success": True,
+        "message": f"Task '{task.title}' marked as completed"
+    }
+
+async def delete_task_tool(session: AsyncSession, user_id: UUID, task_id: str):
+    """Tool to delete a task from the user's list."""
+    try:
+        task_uuid = UUID(task_id)
+    except ValueError:
+        return {"success": False, "message": "Invalid task ID format"}
+
+    result = await session.execute(
+        select(Task).where(Task.id == task_uuid, Task.user_id == user_id)
+    )
+    task = result.scalar_one_or_none()
+
+    if not task:
+        return {"success": False, "message": "Task not found or access denied"}
+
+    await session.delete(task)
+    await session.commit()
+
+    return {
+        "success": True,
+        "message": f"Task '{task.title}' deleted successfully"
+    }
+
+async def update_task_tool(session: AsyncSession, user_id: UUID, task_id: str, title: Optional[str] = None, description: Optional[str] = None):
+    """Tool to update a task in the user's list."""
+    try:
+        task_uuid = UUID(task_id)
+    except ValueError:
+        return {"success": False, "message": "Invalid task ID format"}
+
+    result = await session.execute(
+        select(Task).where(Task.id == task_uuid, Task.user_id == user_id)
+    )
+    task = result.scalar_one_or_none()
+
+    if not task:
+        return {"success": False, "message": "Task not found or access denied"}
+
+    if title:
+        task.title = title
+    if description is not None:  # Allow empty string
+        task.description = description
+
+    session.add(task)
+    await session.commit()
+
+    return {
+        "success": True,
+        "message": f"Task '{task.title}' updated successfully"
+    }
+
+# Define the tools for Cohere
+TODO_TOOLS = [
+    {
+        "name": "add_task",
+        "description": "Add a new task to the user's task list",
+        "parameter_definitions": {
+            "user_id": {"type": "str", "required": True, "description": "ID of the user"},
+            "title": {"type": "str", "required": True, "description": "Title of the task"},
+            "description": {"type": "str", "required": False, "description": "Optional description of the task"}
+        }
+    },
+    {
+        "name": "list_tasks",
+        "description": "List tasks for the user, optionally filtered by status",
+        "parameter_definitions": {
+            "user_id": {"type": "str", "required": True, "description": "ID of the user"},
+            "status": {"type": "str", "required": False, "description": "Filter by status: all, pending, or completed", "default": "all"}
+        }
+    },
+    {
+        "name": "complete_task",
+        "description": "Mark a task as completed",
+        "parameter_definitions": {
+            "user_id": {"type": "str", "required": True, "description": "ID of the user"},
+            "task_id": {"type": "str", "required": True, "description": "ID of the task to complete"}
+        }
+    },
+    {
+        "name": "delete_task",
+        "description": "Delete a task from the user's task list",
+        "parameter_definitions": {
+            "user_id": {"type": "str", "required": True, "description": "ID of the user"},
+            "task_id": {"type": "str", "required": True, "description": "ID of the task to delete"}
+        }
+    },
+    {
+        "name": "update_task",
+        "description": "Update a task in the user's task list",
+        "parameter_definitions": {
+            "user_id": {"type": "str", "required": True, "description": "ID of the user"},
+            "task_id": {"type": "str", "required": True, "description": "ID of the task to update"},
+            "title": {"type": "str", "required": False, "description": "New title for the task (optional)"},
+            "description": {"type": "str", "required": False, "description": "New description for the task (optional)"}
+        }
+    }
+]
+
+async def process_with_cohere(user_id: str, message: str, session: AsyncSession):
+    """Process message with Cohere AI and execute tools as needed."""
+    cohere_client = get_cohere_client()
+
+    if not cohere_client:
+        # Fallback to simple rule-based processing if Cohere is not available
+        return await process_with_rules(user_id, message, session)
+
+    try:
+        # Get conversation history for context
+        history_result = await session.execute(
+            select(Message)
+            .join(Conversation, Message.conversation_id == Conversation.id)
+            .where(Conversation.user_id == UUID(user_id))
+            .order_by(Message.timestamp.asc())
+        )
+        history_messages = history_result.scalars().all()
+
+        # Format conversation history for Cohere
+        chat_history = []
+        for msg in history_messages:
+            if msg.role == "user":
+                chat_history.append({"role": "USER", "message": msg.content})
+            elif msg.role == "assistant":
+                chat_history.append({"role": "CHATBOT", "message": msg.content})
+
+        # Call Cohere with tools
+        response = cohere_client.chat(
+            message=message,
+            chat_history=chat_history[-10:] if len(chat_history) > 10 else chat_history,  # Limit history to last 10 messages
+            tools=TODO_TOOLS,
+            model="command-r-plus"  # Using a capable model for tool use
+        )
+
+        # Check if Cohere wants to call any tools
+        tool_calls = []
+        if hasattr(response, 'tool_calls') and response.tool_calls:
+            tool_results = []
+
+            for tool_call in response.tool_calls:
+                # Execute the tool
+                result = await execute_tool(tool_call.name, tool_call.parameters, UUID(user_id), session)
+                tool_results.append({
+                    "call": tool_call,
+                    "outputs": [result]
+                })
+                tool_calls.append(ToolCall(name=tool_call.name, arguments=tool_call.parameters))
+
+            # If there were tool calls, get the final response from Cohere
+            if tool_results:
+                final_response = cohere_client.chat(
+                    message=message,
+                    chat_history=chat_history[-10:] + [{"role": "CHATBOT", "message": response.text}],
+                    tools=TODO_TOOLS,
+                    tool_results=tool_results,
+                    model="command-r-plus"
+                )
+
+                return {
+                    "response": final_response.text,
+                    "tool_calls": tool_calls
+                }
+
+        # Return response if no tools were called
+        return {
+            "response": response.text,
+            "tool_calls": []
+        }
+
+    except Exception as e:
+        print(f"Error with Cohere processing: {e}")
+        # Fallback to rule-based processing
+        return await process_with_rules(user_id, message, session)
+
+async def execute_tool(tool_name: str, parameters: dict, user_id: UUID, session: AsyncSession):
+    """Execute a tool based on its name and parameters."""
+    # Add user_id to parameters for tools that need it
+    params = parameters.copy()
+    if 'user_id' not in params:
+        params['user_id'] = str(user_id)
+
+    tool_functions = {
+        "add_task": add_task_tool,
+        "list_tasks": list_tasks_tool,
+        "complete_task": complete_task_tool,
+        "delete_task": delete_task_tool,
+        "update_task": update_task_tool
+    }
+
+    func = tool_functions.get(tool_name)
+    if not func:
+        return {"error": f"Unknown tool: {tool_name}"}
+
+    try:
+        result = await func(session, UUID(params['user_id']), **{k: v for k, v in params.items() if k != 'user_id'})
+        return result
+    except Exception as e:
+        return {"error": f"Tool execution failed: {str(e)}"}
+
+async def process_with_rules(user_id: str, message: str, session: AsyncSession):
+    """Fallback rule-based processing when Cohere is not available."""
+    import re
+
+    # Simple natural language processing
+    user_msg_lower = message.lower()
+    response_text = ""
+    tool_calls = []
+
+    # Check for add task command
+    if "add" in user_msg_lower and ("task" in user_msg_lower or "todo" in user_msg_lower):
+        # Extract task title (simple approach)
+        match = re.search(r"(?:add|create)\s+(?:a\s+)?(?:task|todo)\s+to\s+(.+)", user_msg_lower)
+        if match:
+            task_title = match.group(1).strip()
+            # Create task
+            result = await add_task_tool(session, UUID(user_id), task_title, None)
+            if result["success"]:
+                response_text = f"I've added the task '{task_title}' to your list."
+                tool_calls = [ToolCall(name="add_task", arguments={"task_id": result["task_id"], "title": task_title})]
+            else:
+                response_text = f"Failed to add task: {result['message']}"
+        else:
+            response_text = "I can help you add tasks. Try saying something like 'Add a task to buy groceries'."
+
+    # Check for list tasks command
+    elif "show" in user_msg_lower or "list" in user_msg_lower or "my tasks" in user_msg_lower:
+        result = await list_tasks_tool(session, UUID(user_id), "all")
+        if result["success"]:
+            tasks = result["tasks"]
+            if tasks:
+                task_list = "\n".join([f"- {task['title']} ({'✓' if task['completed'] else '○'})" for task in tasks[:5]])  # Show first 5
+                response_text = f"Here are your tasks:\n{task_list}\n\nYou have {len(tasks)} total tasks."
+            else:
+                response_text = "You don't have any tasks yet. You can add tasks by saying something like 'Add a task to buy groceries'."
+            tool_calls = [ToolCall(name="list_tasks", arguments={"count": len(tasks)})]
+        else:
+            response_text = f"Failed to list tasks: {result['message']}"
+
+    # Check for complete task command
+    elif "complete" in user_msg_lower or "done" in user_msg_lower or "finish" in user_msg_lower:
+        # Try to find a task ID in the message
+        task_id_match = re.search(r'task\s+([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})', user_msg_lower)
+        if task_id_match:
+            task_id = task_id_match.group(1)
+            result = await complete_task_tool(session, UUID(user_id), task_id)
+            response_text = result["message"]
+            if result["success"]:
+                tool_calls = [ToolCall(name="complete_task", arguments={"task_id": task_id, "title": "completed task"})]
+        else:
+            response_text = "I can help you mark tasks as complete. Try saying something like 'Mark task [task-id] as complete'."
+
+    # Check for delete task command
+    elif "delete" in user_msg_lower or "remove" in user_msg_lower or "cancel" in user_msg_lower:
+        response_text = "I can help you delete tasks. Try saying something like 'Delete task [task-id]'."
+
+    # Default response
+    else:
+        response_text = f"I received your message: '{message}'. I can help you manage your tasks. Try commands like 'Add a task to...', 'Show my tasks', or 'Mark task as complete'."
+
+    return {
+        "response": response_text,
+        "tool_calls": tool_calls
+    }
+
+# Chat endpoints
+@app.post("/api/{user_id}/chat", response_model=ChatResponse)
+async def chat_endpoint(
+    user_id: str,
+    message_request: ChatMessageRequest,
+    session: AsyncSession = Depends(get_session)
+):
+    """
+    Stateless chat endpoint that processes natural language commands
+    and manages conversation history in the database
+    """
+    # Verify that the user_id is valid
+    try:
+        user_uuid = UUID(user_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid user ID format")
+
+    # Verify that the user exists
+    user_result = await session.execute(select(User).where(User.id == user_uuid))
+    current_user = user_result.scalar_one_or_none()
+    if not current_user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # If no conversation_id provided, create a new one
+    conversation_id = message_request.conversation_id
+    if not conversation_id:
+        # Create new conversation
+        conversation = Conversation(user_id=user_uuid)
+        session.add(conversation)
+        await session.commit()
+        await session.refresh(conversation)
+        conversation_id = str(conversation.id)
+    else:
+        # Verify conversation belongs to user
+        try:
+            conv_uuid = UUID(conversation_id)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid conversation ID format")
+
+        conv_result = await session.execute(
+            select(Conversation).where(Conversation.id == conv_uuid, Conversation.user_id == user_uuid)
+        )
+        conversation = conv_result.scalar_one_or_none()
+        if not conversation:
+            raise HTTPException(status_code=404, detail="Conversation not found")
+
+    # Save user's message to the conversation
+    user_message = Message(
+        conversation_id=UUID(conversation_id),
+        role="user",
+        content=message_request.message
+    )
+    session.add(user_message)
+    await session.commit()
+
+    # Process the message with AI (Cohere) or fallback rules
+    result = await process_with_cohere(user_id, message_request.message, session)
+    response_text = result["response"]
+    tool_calls = result["tool_calls"]
+
+    # Save assistant's response to the conversation
+    assistant_message = Message(
+        conversation_id=UUID(conversation_id),
+        role="assistant",
+        content=response_text
+    )
+    session.add(assistant_message)
+    await session.commit()
+
+    # Update conversation timestamp
+    conversation_result = await session.execute(
+        select(Conversation).where(Conversation.id == UUID(conversation_id))
+    )
+    conversation = conversation_result.scalar_one()
+    conversation.updated_at = datetime.utcnow()
+    session.add(conversation)
+    await session.commit()
+
+    return ChatResponse(
+        response=response_text,
+        conversation_id=conversation_id,
+        tool_calls=tool_calls,
+        message_id=str(assistant_message.id)
+    )
+
+
+@app.get("/api/{user_id}/conversations")
+async def get_user_conversations(
+    user_id: str,
+    session: AsyncSession = Depends(get_session)
+):
+    """Get list of conversation IDs for the user"""
+    try:
+        user_uuid = UUID(user_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid user ID format")
+
+    # Verify that the user exists
+    user_result = await session.execute(select(User).where(User.id == user_uuid))
+    current_user = user_result.scalar_one_or_none()
+    if not current_user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Get user's conversations
+    result = await session.execute(
+        select(Conversation)
+        .where(Conversation.user_id == user_uuid)
+        .order_by(Conversation.updated_at.desc())
+    )
+    conversations = result.scalars().all()
+
+    return {
+        "conversations": [
+            {
+                "id": str(conv.id),
+                "created_at": conv.created_at.isoformat(),
+                "updated_at": conv.updated_at.isoformat()
+            }
+            for conv in conversations
+        ]
+    }
+
+
+@app.get("/api/{user_id}/conversations/{conversation_id}/messages")
+async def get_conversation_messages(
+    user_id: str,
+    conversation_id: str,
+    session: AsyncSession = Depends(get_session)
+):
+    """Get messages from a specific conversation"""
+    try:
+        user_uuid = UUID(user_id)
+        conv_uuid = UUID(conversation_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid ID format")
+
+    # Verify that the user exists
+    user_result = await session.execute(select(User).where(User.id == user_uuid))
+    current_user = user_result.scalar_one_or_none()
+    if not current_user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Verify conversation belongs to user
+    conv_result = await session.execute(
+        select(Conversation).where(Conversation.id == conv_uuid, Conversation.user_id == user_uuid)
+    )
+    conversation = conv_result.scalar_one_or_none()
+    if not conversation:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+
+    # Get conversation messages
+    result = await session.execute(
+        select(Message)
+        .where(Message.conversation_id == conv_uuid)
+        .order_by(Message.timestamp.asc())
+    )
+    messages = result.scalars().all()
+
+    return {
+        "messages": [
+            {
+                "id": str(msg.id),
+                "role": msg.role,
+                "content": msg.content,
+                "timestamp": msg.timestamp.isoformat()
+            }
+            for msg in messages
+        ]
+    }
+
+
+@app.get("/api/{user_id}/conversations")
+async def get_user_conversations(
+    user_id: str,
+    session: AsyncSession = Depends(get_session)
+):
+    """Get list of conversation IDs for the user"""
+    try:
+        user_uuid = UUID(user_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid user ID format")
+
+    # Verify that the user exists
+    user_result = await session.execute(select(User).where(User.id == user_uuid))
+    current_user = user_result.scalar_one_or_none()
+    if not current_user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Get user's conversations
+    result = await session.execute(
+        select(Conversation)
+        .where(Conversation.user_id == user_uuid)
+        .order_by(Conversation.updated_at.desc())
+    )
+    conversations = result.scalars().all()
+
+    return {
+        "conversations": [
+            {
+                "id": str(conv.id),
+                "created_at": conv.created_at.isoformat(),
+                "updated_at": conv.updated_at.isoformat()
+            }
+            for conv in conversations
+        ]
+    }
+
+
+@app.get("/api/{user_id}/conversations/{conversation_id}/messages")
+async def get_conversation_messages(
+    user_id: str,
+    conversation_id: str,
+    session: AsyncSession = Depends(get_session)
+):
+    """Get messages from a specific conversation"""
+    try:
+        user_uuid = UUID(user_id)
+        conv_uuid = UUID(conversation_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid ID format")
+
+    # Verify that the user exists
+    user_result = await session.execute(select(User).where(User.id == user_uuid))
+    current_user = user_result.scalar_one_or_none()
+    if not current_user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Verify conversation belongs to user
+    conv_result = await session.execute(
+        select(Conversation).where(Conversation.id == conv_uuid, Conversation.user_id == user_uuid)
+    )
+    conversation = conv_result.scalar_one_or_none()
+    if not conversation:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+
+    # Get conversation messages
+    result = await session.execute(
+        select(Message)
+        .where(Message.conversation_id == conv_uuid)
+        .order_by(Message.timestamp.asc())
+    )
+    messages = result.scalars().all()
+
+    return {
+        "messages": [
+            {
+                "id": str(msg.id),
+                "role": msg.role,
+                "content": msg.content,
+                "timestamp": msg.timestamp.isoformat()
+            }
+            for msg in messages
+        ]
+    }
+
+
 # Root endpoint
 @app.get("/")
 async def root():
-    return {"message": "Todo API - Phase II", "docs": "/docs", "health": "/health"}
+    return {
+        "message": "Todo API - Phase II with AI Chatbot Integration",
+        "features": ["authentication", "task_management", "ai_chatbot"],
+        "docs": "/docs",
+        "health": "/health",
+        "endpoints": {
+            "auth": "/api/auth/*",
+            "tasks": "/api/tasks/*",
+            "chat": "/api/{user_id}/chat",
+            "conversations": "/api/{user_id}/conversations"
+        }
+    }
 
 if __name__ == "__main__":
     import os

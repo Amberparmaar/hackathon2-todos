@@ -1,4 +1,4 @@
-# Backend dependencies for Phase II Full-Stack Multi-User Web Application
+# Backend dependencies for Phase II Full-Stack Multi-User Web Application with AI Chatbot
 # Task Reference: T-025
 
 # FastAPI and server
@@ -20,6 +20,9 @@ pydantic==2.5.2
 pydantic-core==2.14.5
 pydantic-settings==2.1.0
 email-validator==2.1.0
+
+# AI/ML - Cohere for natural language processing
+cohere==5.5.8
 
 # CORS
 python-jose[cryptography]==3.3.0
