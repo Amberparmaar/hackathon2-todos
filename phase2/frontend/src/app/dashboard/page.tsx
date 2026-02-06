@@ -115,6 +115,20 @@ function DashboardContent() {
     }
   }, []);
 
+  // Listen for task list changes from chatbot
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const handleTaskListChanged = () => {
+        loadTasks(); // Refresh task list when chatbot performs operations
+      };
+
+      window.addEventListener('taskListChanged', handleTaskListChanged);
+      return () => {
+        window.removeEventListener('taskListChanged', handleTaskListChanged);
+      };
+    }
+  }, []);
+
   const loadTasks = async () => {
     setLoading(true);
     setError('');

@@ -877,7 +877,16 @@ async def process_with_rules(user_id: str, message: str, session: AsyncSession):
 
     # Check for delete task command
     elif "delete" in user_msg_lower or "remove" in user_msg_lower or "cancel" in user_msg_lower:
-        response_text = "I can help you delete tasks. Try saying something like 'Delete task [task-id]'."
+        # Try to find a task ID in the message
+        task_id_match = re.search(r'task\s+([a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12})', user_msg_lower)
+        if task_id_match:
+            task_id = task_id_match.group(1)
+            result = await delete_task_tool(session, UUID(user_id), task_id)
+            response_text = result["message"]
+            if result["success"]:
+                tool_calls = [ToolCall(name="delete_task", arguments={"task_id": task_id})]
+        else:
+            response_text = "I can help you delete tasks. Try saying something like 'Delete task [task-id]'."
 
     # Default response
     else:

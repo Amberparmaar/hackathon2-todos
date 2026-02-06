@@ -77,6 +77,19 @@ export default function ChatBot() {
       };
 
       setMessages(prev => [...prev, assistantMessage]);
+
+      // Trigger task list refresh if chatbot performed task operations
+      if (data.tool_calls && data.tool_calls.length > 0) {
+        const taskOperations = ['add_task', 'delete_task', 'update_task', 'complete_task'];
+        const hasTaskOperation = data.tool_calls.some((call: any) =>
+          taskOperations.includes(call.name)
+        );
+
+        if (hasTaskOperation) {
+          // Dispatch custom event to notify dashboard to refresh tasks
+          window.dispatchEvent(new CustomEvent('taskListChanged'));
+        }
+      }
     } catch (error) {
       console.error('Error sending message:', error);
 
