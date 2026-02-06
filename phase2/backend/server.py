@@ -208,14 +208,16 @@ def get_current_user_id(credentials: HTTPAuthorizationCredentials = Depends(HTTP
 # App setup
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Create tables
+    # Create tables with checkfirst=True to avoid duplicate errors on restart
     try:
         async with engine.begin() as conn:
             # Import all models to ensure they're registered with SQLModel
             from sqlmodel import SQLModel
-            # Make sure all model classes are imported before creating tables
-            # The models are already defined in this file
-            await conn.run_sync(SQLModel.metadata.create_all)
+            # Use checkfirst=True to skip existing tables/indexes
+            await conn.run_sync(
+                lambda sync_conn: SQLModel.metadata.create_all(sync_conn, checkfirst=True)
+            )
+            print("Database tables initialized successfully")
     except Exception as e:
         print(f"Error initializing database: {e}")
         # Don't raise the exception here to avoid crashing the app
@@ -507,27 +509,6 @@ async def toggle_task(
 @app.get("/health")
 async def health_check():
     return {"status": "healthy", "version": "1.0.0"}
-
-# Conversation models
-class Conversation(SQLModel, table=True):
-    __tablename__ = "conversations"
-    __table_args__ = {'extend_existing': True}  # Allow redefinition
-
-    id: UUID = Field(default_factory=uuid4, primary_key=True)
-    user_id: UUID = Field(index=True)  # Foreign key to user
-    created_at: datetime = Field(default_factory=datetime.utcnow)
-    updated_at: datetime = Field(default_factory=datetime.utcnow)
-
-class Message(SQLModel, table=True):
-    __tablename__ = "messages"
-    __table_args__ = {'extend_existing': True}  # Allow redefinition
-
-    id: UUID = Field(default_factory=uuid4, primary_key=True)
-    conversation_id: UUID = Field(index=True)  # Foreign key to conversation
-    role: str = Field(regex="^(user|assistant)$")  # user or assistant
-    content: str = Field(max_length=10000)
-    timestamp: datetime = Field(default_factory=datetime.utcnow)
-
 
 # Chat request/response models
 class ChatMessageRequest(BaseModel):
