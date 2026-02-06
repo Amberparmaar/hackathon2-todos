@@ -688,7 +688,6 @@ TODO_TOOLS = [
         "name": "add_task",
         "description": "Add a new task to the user's task list",
         "parameter_definitions": {
-            "user_id": {"type": "str", "required": True, "description": "ID of the user"},
             "title": {"type": "str", "required": True, "description": "Title of the task"},
             "description": {"type": "str", "required": False, "description": "Optional description of the task"}
         }
@@ -697,7 +696,6 @@ TODO_TOOLS = [
         "name": "list_tasks",
         "description": "List tasks for the user, optionally filtered by status",
         "parameter_definitions": {
-            "user_id": {"type": "str", "required": True, "description": "ID of the user"},
             "status": {"type": "str", "required": False, "description": "Filter by status: all, pending, or completed", "default": "all"}
         }
     },
@@ -705,7 +703,6 @@ TODO_TOOLS = [
         "name": "complete_task",
         "description": "Mark a task as completed",
         "parameter_definitions": {
-            "user_id": {"type": "str", "required": True, "description": "ID of the user"},
             "task_id": {"type": "str", "required": True, "description": "ID of the task to complete"}
         }
     },
@@ -713,7 +710,6 @@ TODO_TOOLS = [
         "name": "delete_task",
         "description": "Delete a task from the user's task list",
         "parameter_definitions": {
-            "user_id": {"type": "str", "required": True, "description": "ID of the user"},
             "task_id": {"type": "str", "required": True, "description": "ID of the task to delete"}
         }
     },
@@ -721,7 +717,6 @@ TODO_TOOLS = [
         "name": "update_task",
         "description": "Update a task in the user's task list",
         "parameter_definitions": {
-            "user_id": {"type": "str", "required": True, "description": "ID of the user"},
             "task_id": {"type": "str", "required": True, "description": "ID of the task to update"},
             "title": {"type": "str", "required": False, "description": "New title for the task (optional)"},
             "description": {"type": "str", "required": False, "description": "New description for the task (optional)"}
@@ -838,11 +833,30 @@ async def process_with_rules(user_id: str, message: str, session: AsyncSession):
     tool_calls = []
 
     # Check for add task command
-    if "add" in user_msg_lower and ("task" in user_msg_lower or "todo" in user_msg_lower):
-        # Extract task title (simple approach)
+    if "add" in user_msg_lower or "create" in user_msg_lower:
+        # Try multiple patterns to extract task title
+        task_title = None
+
+        # Pattern 1: "add task to buy milk"
         match = re.search(r"(?:add|create)\s+(?:a\s+)?(?:task|todo)\s+to\s+(.+)", user_msg_lower)
         if match:
             task_title = match.group(1).strip()
+
+        # Pattern 2: "add task buy milk"
+        if not task_title:
+            match = re.search(r"(?:add|create)\s+(?:a\s+)?(?:task|todo)\s+(.+)", user_msg_lower)
+            if match:
+                task_title = match.group(1).strip()
+
+        # Pattern 3: "add buy milk"
+        if not task_title:
+            match = re.search(r"(?:add|create)\s+(.+)", user_msg_lower)
+            if match:
+                task_title = match.group(1).strip()
+                # Remove common words
+                task_title = re.sub(r'^(a|an|the|task|todo)\s+', '', task_title)
+
+        if task_title and len(task_title) > 0:
             # Create task
             result = await add_task_tool(session, UUID(user_id), task_title, None)
             if result["success"]:
@@ -851,7 +865,7 @@ async def process_with_rules(user_id: str, message: str, session: AsyncSession):
             else:
                 response_text = f"Failed to add task: {result['message']}"
         else:
-            response_text = "I can help you add tasks. Try saying something like 'Add a task to buy groceries'."
+            response_text = "I can help you add tasks. Try saying something like 'Add a task to buy groceries' or 'Add buy milk'."
 
     # Check for list tasks command
     elif "show" in user_msg_lower or "list" in user_msg_lower or "my tasks" in user_msg_lower:
@@ -898,12 +912,17 @@ async def process_with_rules(user_id: str, message: str, session: AsyncSession):
 async def chat_endpoint(
     user_id: str,
     message_request: ChatMessageRequest,
+    token_user_id: str = Depends(get_current_user_id),
     session: AsyncSession = Depends(get_session)
 ):
     """
     Stateless chat endpoint that processes natural language commands
     and manages conversation history in the database
     """
+    # Verify that the authenticated user matches the requested user_id
+    if token_user_id != user_id:
+        raise HTTPException(status_code=403, detail="Forbidden: Cannot access another user's chat")
+
     # Verify that the user_id is valid
     try:
         user_uuid = UUID(user_id)
@@ -977,91 +996,6 @@ async def chat_endpoint(
         tool_calls=tool_calls,
         message_id=str(assistant_message.id)
     )
-
-
-@app.get("/api/{user_id}/conversations")
-async def get_user_conversations(
-    user_id: str,
-    session: AsyncSession = Depends(get_session)
-):
-    """Get list of conversation IDs for the user"""
-    try:
-        user_uuid = UUID(user_id)
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid user ID format")
-
-    # Verify that the user exists
-    user_result = await session.execute(select(User).where(User.id == user_uuid))
-    current_user = user_result.scalar_one_or_none()
-    if not current_user:
-        raise HTTPException(status_code=404, detail="User not found")
-
-    # Get user's conversations
-    result = await session.execute(
-        select(Conversation)
-        .where(Conversation.user_id == user_uuid)
-        .order_by(Conversation.updated_at.desc())
-    )
-    conversations = result.scalars().all()
-
-    return {
-        "conversations": [
-            {
-                "id": str(conv.id),
-                "created_at": conv.created_at.isoformat(),
-                "updated_at": conv.updated_at.isoformat()
-            }
-            for conv in conversations
-        ]
-    }
-
-
-@app.get("/api/{user_id}/conversations/{conversation_id}/messages")
-async def get_conversation_messages(
-    user_id: str,
-    conversation_id: str,
-    session: AsyncSession = Depends(get_session)
-):
-    """Get messages from a specific conversation"""
-    try:
-        user_uuid = UUID(user_id)
-        conv_uuid = UUID(conversation_id)
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid ID format")
-
-    # Verify that the user exists
-    user_result = await session.execute(select(User).where(User.id == user_uuid))
-    current_user = user_result.scalar_one_or_none()
-    if not current_user:
-        raise HTTPException(status_code=404, detail="User not found")
-
-    # Verify conversation belongs to user
-    conv_result = await session.execute(
-        select(Conversation).where(Conversation.id == conv_uuid, Conversation.user_id == user_uuid)
-    )
-    conversation = conv_result.scalar_one_or_none()
-    if not conversation:
-        raise HTTPException(status_code=404, detail="Conversation not found")
-
-    # Get conversation messages
-    result = await session.execute(
-        select(Message)
-        .where(Message.conversation_id == conv_uuid)
-        .order_by(Message.timestamp.asc())
-    )
-    messages = result.scalars().all()
-
-    return {
-        "messages": [
-            {
-                "id": str(msg.id),
-                "role": msg.role,
-                "content": msg.content,
-                "timestamp": msg.timestamp.isoformat()
-            }
-            for msg in messages
-        ]
-    }
 
 
 @app.get("/api/{user_id}/conversations")
