@@ -1,0 +1,55 @@
+# Backend configuration
+backend:
+  replicas: 2
+  image:
+    repository: todo-backend
+    tag: latest
+    pullPolicy: Never
+  resources:
+    requests:
+      memory: "512Mi"
+      cpu: "250m"
+    limits:
+      memory: "1Gi"
+      cpu: "500m"
+  service:
+    type: ClusterIP
+    port: 7860
+
+# Frontend configuration
+frontend:
+  replicas: 2
+  image:
+    repository: todo-frontend
+    tag: latest
+    pullPolicy: Never
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "100m"
+    limits:
+      memory: "512Mi"
+      cpu: "250m"
+  service:
+    type: NodePort
+    port: 3000
+    nodePort: 30080
+
+# Secrets (must be provided via values override)
+secrets:
+  databaseUrl: ""  # Required: PostgreSQL connection string
+  cohereApiKey: ""  # Required: Cohere API key
+  betterAuthSecret: ""  # Required: Better Auth secret
+
+# Health check configuration
+healthCheck:
+  liveness:
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+  readiness:
+    initialDelaySeconds: 10
+    periodSeconds: 5
+    timeoutSeconds: 3
+    failureThreshold: 2

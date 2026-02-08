@@ -1,0 +1,82 @@
+# Git and version control
+.git/
+.gitignore
+.gitattributes
+
+# Node.js (Frontend)
+node_modules/
+.next/
+.turbo/
+out/
+.eslintcache
+
+# Python (Backend)
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.coverage
+htmlcov/
+*.egg-info/
+venv/
+.venv/
+env/
+ENV/
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*.sublime-*
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log
+logs/
+
+# Testing
+tests/
+test/
+__tests__/
+*.test.py
+*.test.js
+*.test.ts
+*.test.tsx
+*.spec.py
+*.spec.js
+*.spec.ts
+*.spec.tsx
+coverage/
+
+# Build artifacts
+dist/
+build/
+target/
+
+# Documentation (not needed in images)
+*.md
+docs/
+
+# Phase isolation - exclude other phases from builds
+phase1/
+phase3/
+phase4/
+phase5/
+specs/
+.specify/
+
+# Docker files themselves
+Dockerfile*
+.dockerignore
+docker-compose*.yml
